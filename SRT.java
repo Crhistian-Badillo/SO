@@ -1,16 +1,15 @@
 package Bradley;
 
 
-
+import Bradley.Proceso;
 import Bradley.Diagrama;
 import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 
-public class FIFO implements Runnable{
+public class SRT implements Runnable {
     Proceso[] procesos;
     
     Random r = new Random();
@@ -19,15 +18,12 @@ public class FIFO implements Runnable{
     int indexBloqueado=0;
     int indexSuspB=0;
     int indexListo=Diagrama.contador;
-    public static boolean bandera = true;
     
-    
-    public FIFO(Proceso[] pr, int length){
+     public SRT(Proceso[] pr, int length){
         procesos = new Proceso[length];
         procesos = pr;
     }
     
-    @Override
     public void run() {
         
         Diagrama.listos=procesos;
@@ -36,11 +32,16 @@ public class FIFO implements Runnable{
         
         int ind=0;
         int length = Diagrama.listos.length;
-        //bandera = true;
+        boolean bandera = true;
         
         do{
             Proceso p = new Proceso();
             p = Diagrama.listos[ind];
+            
+            Proceso p1 = new Proceso();
+            p1 = Diagrama.listos[ind+1];
+                       
+            
             if(p!=null){
                 
                 
@@ -54,12 +55,12 @@ public class FIFO implements Runnable{
                 Diagrama.listos[ind] = null;
                 Mostrar(Diagrama.listos,Diagrama.areaListos);
                 System.out.println("ESTATUS INICIAL :" + randomListo);
-                CallProceso(p, randomListo);
+                CallProceso(p, randomListo,p1);
                 p = null;
             }
             ind++;
             
-            bandera = length != ind;
+            bandera = length != ind + 1;
             
         }while(bandera);
         System.out.println("Se termino el RUN");
@@ -67,45 +68,49 @@ public class FIFO implements Runnable{
     }
     
     
-    public void CallProceso (Proceso p, status s){
+    public void CallProceso (Proceso p, status s, Proceso p1){
         
-        int tiempoTot = p.tiempo;
-        p.servicio = tiempoTot;
-        int a = (ThreadLocalRandom.current().nextInt(1, 3 + 1)) * 1000; 
-        System.out.println("Dormir = " + a);
-        
+  
         switch (s) {
             case EJECUTAR:
+
                 Diagrama.lbProceso.setText(p.nombre);
                 //Se ejecuta completo el programa
                 System.out.println("Ejecutar");
-                Dormir(1500);
+                Dormir(p.tiempo);
                 
                 //? 3: EJECUTARCOMPLETO/4: SUSPENDIDOLISTO/5: BLOQUEADO
-                status randomListo= getStatus(3,2);
-                System.out.println("ESTATUS:" + randomListo);
-                CallProceso(p, randomListo);
-                Diagrama.lbProceso.setText("");
                 
+                if (p1 ==null){
+                    CallProceso(p,status.EJECUTARCOMPLETO,p1);
+                    Diagrama.aux = -1;
+                } else {
+                System.out.println("tiempoproceso "+ p.tiempo+" timepo porceso1 "+p1.tiempo);
+                
+                if (p.tiempo > p1.tiempo){
+                    indexSuspL = Añadir(Diagrama.suspListo,p,indexSuspL);
+                    returnToListos(Diagrama.suspListo,Diagrama.areaSuspLis );
+                    Diagrama.lbProceso.setText(null);
+                }else{
+                    status randomListo= getStatus(3,2);
+                    System.out.println("ESTATUS:" + randomListo);
+                    CallProceso(p, randomListo,p1);
+                    Diagrama.lbProceso.setText("");
+                }
+                }
                 break;
-                
             case SUSPENDIDOLISTO:
                 
                 System.out.println("suspendido listo");
+                Dormir(1500);
                 Diagrama.lbProceso.setText("");
                 indexSuspL = Añadir(Diagrama.suspListo,p,indexSuspL);
                 Mostrar(Diagrama.suspListo,Diagrama.areaSuspLis);
-                
-                if (Diagrama.ProcesosRestantes > 1){
-                    run();
-                }
-                
-                Dormir(a);
-                Diagrama.tiempoTot += (a / 1000);
+                Dormir(1500);
                 returnToListos(Diagrama.suspListo,Diagrama.areaSuspLis );
                 break;
-                
             case EJECUTARCOMPLETO:
+                
                 Diagrama.lbProceso.setText(p.nombre);
                 //Se ejecuta completo el programa
                 System.out.println("EJECUTAR COMPLETO");
@@ -113,21 +118,17 @@ public class FIFO implements Runnable{
                 
                 mostrarFinalizados(p);
                 Diagrama.lbProceso.setText("");
-                Diagrama.ProcesosRestantes--;
+                
                 break;
                 
             case BLOQUEADO:
                 
                 System.out.println(" BLOQUEO");
+                Dormir(1500);
                 indexBloqueado = Añadir(Diagrama.bloqueado,p,indexBloqueado);
                 Diagrama.lbProceso.setText("");
                 Mostrar(Diagrama.bloqueado,Diagrama.areaBloqueado);
-                
-                if (Diagrama.ProcesosRestantes > 1){
-                    run();
-                }
-                
-                Dormir(a);
+                Dormir(1500);
                 int randomblo=r.nextInt(2);
                 
                 if(randomblo==0){
@@ -135,41 +136,35 @@ public class FIFO implements Runnable{
                 }else{
                     int indRemover =   obtenerPrimerProcesoIndex(Diagrama.bloqueado);
                     removeProceso(Diagrama.bloqueado,Diagrama.areaBloqueado, indRemover);
-                    CallProceso(p,status.SUSPENDIDOBLOQUEADO);
+                    CallProceso(p,status.SUSPENDIDOBLOQUEADO,p1);
                 }
-                Diagrama.tiempoTot += (a / 1000);
-                break;                
                 
+                break;                
             case SUSPENDIDOBLOQUEADO:
                 int randomSblo=r.nextInt(2);
                 
                 System.out.println("SUSPENDIDO BLOQUEADO");
+                Dormir(1500);
                 Diagrama.lbProceso.setText("");
                 indexSuspB = Añadir(Diagrama.suspBlo,p,indexSuspB);
                 Mostrar(Diagrama.suspBlo,Diagrama.areaSusBlo);
-                
-                if (Diagrama.ProcesosRestantes > 1){
-                    run();
-                }
-                
-                Dormir(a);
-                Diagrama.tiempoTot += (a / 1000);
+                Dormir(1500);
                 
                 int indRemover =   obtenerPrimerProcesoIndex(Diagrama.suspBlo);
                 removeProceso(Diagrama.suspBlo,Diagrama.areaSusBlo, indRemover);
                 if(randomSblo==0)
-                    CallProceso(p,status.BLOQUEADO);
+                    CallProceso(p,status.BLOQUEADO,p1);
                 else
-                    CallProceso(p,status.SUSPENDIDOLISTO);
+                    CallProceso(p,status.SUSPENDIDOLISTO,p1);
                 
                 break;
             default:
                 break;
         }
-        
+                
     }
     
-    public void returnToListos(Proceso[] lista,JTextArea area ){
+public void returnToListos(Proceso[] lista,JTextArea area ){
         int index = obtenerPrimerProcesoIndex(lista);
         Proceso p = obtenerProceso(lista, index);
         indexListo = Añadir(Diagrama.listos,p,indexListo);
@@ -201,14 +196,14 @@ public class FIFO implements Runnable{
     public void mostrarFinalizados(Proceso p){
         
         // obtenga tiempo
+        
         int va = Diagrama.aux;
         
-        
-               Diagrama.list [0] = p.nombre;
-               Diagrama.list [1] = Integer.toString(va);
-               Diagrama.miMod.addRow(Diagrama.list);
+        String list [] = new String[2];
+               list [0] = p.nombre;
+               list [1] = Integer.toString(va);
+               Diagrama.miMod.addRow(list);
                Diagrama.areaFinalizados.setModel(Diagrama.miMod);
-        
     }
     
     
@@ -275,8 +270,4 @@ public class FIFO implements Runnable{
         area.setText(list);
     }
     
-    
 }
-
-
-

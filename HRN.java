@@ -1,17 +1,15 @@
 package Bradley;
 
-
-
-import Bradley.Diagrama;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 
-public class FIFO implements Runnable{
-    Proceso[] procesos;
+public class HRN implements Runnable{
+   Proceso[] procesos;
     
     Random r = new Random();
     
@@ -19,10 +17,23 @@ public class FIFO implements Runnable{
     int indexBloqueado=0;
     int indexSuspB=0;
     int indexListo=Diagrama.contador;
-    public static boolean bandera = true;
+    double priori;
+    int tiempoLis = -1;
+    
+    Timer timerPrincipal = new Timer();
+    public TimerTask tarea = new TimerTask() {
+                @Override
+                public void run() {
+                tiempoLis ++;
+                System.out.println("segundo: " + tiempoLis);
+
+            }
+        };
+    
+    Proceso arregloTiem[] = new Proceso[200];
     
     
-    public FIFO(Proceso[] pr, int length){
+    public HRN(Proceso[] pr, int length){
         procesos = new Proceso[length];
         procesos = pr;
     }
@@ -36,11 +47,12 @@ public class FIFO implements Runnable{
         
         int ind=0;
         int length = Diagrama.listos.length;
-        //bandera = true;
+        boolean bandera = true;
         
         do{
             Proceso p = new Proceso();
             p = Diagrama.listos[ind];
+            p.prior = 1;
             if(p!=null){
                 
                 
@@ -70,7 +82,9 @@ public class FIFO implements Runnable{
     public void CallProceso (Proceso p, status s){
         
         int tiempoTot = p.tiempo;
-        p.servicio = tiempoTot;
+        p.restante = p.tiempo;
+        //p.servicio = Diagrama.aux;
+        
         int a = (ThreadLocalRandom.current().nextInt(1, 3 + 1)) * 1000; 
         System.out.println("Dormir = " + a);
         
@@ -86,7 +100,7 @@ public class FIFO implements Runnable{
                 System.out.println("ESTATUS:" + randomListo);
                 CallProceso(p, randomListo);
                 Diagrama.lbProceso.setText("");
-                
+                p.tiempo += tiempoLis;
                 break;
                 
             case SUSPENDIDOLISTO:
@@ -95,11 +109,6 @@ public class FIFO implements Runnable{
                 Diagrama.lbProceso.setText("");
                 indexSuspL = Añadir(Diagrama.suspListo,p,indexSuspL);
                 Mostrar(Diagrama.suspListo,Diagrama.areaSuspLis);
-                
-                if (Diagrama.ProcesosRestantes > 1){
-                    run();
-                }
-                
                 Dormir(a);
                 Diagrama.tiempoTot += (a / 1000);
                 returnToListos(Diagrama.suspListo,Diagrama.areaSuspLis );
@@ -113,7 +122,7 @@ public class FIFO implements Runnable{
                 
                 mostrarFinalizados(p);
                 Diagrama.lbProceso.setText("");
-                Diagrama.ProcesosRestantes--;
+                
                 break;
                 
             case BLOQUEADO:
@@ -122,11 +131,6 @@ public class FIFO implements Runnable{
                 indexBloqueado = Añadir(Diagrama.bloqueado,p,indexBloqueado);
                 Diagrama.lbProceso.setText("");
                 Mostrar(Diagrama.bloqueado,Diagrama.areaBloqueado);
-                
-                if (Diagrama.ProcesosRestantes > 1){
-                    run();
-                }
-                
                 Dormir(a);
                 int randomblo=r.nextInt(2);
                 
@@ -147,11 +151,6 @@ public class FIFO implements Runnable{
                 Diagrama.lbProceso.setText("");
                 indexSuspB = Añadir(Diagrama.suspBlo,p,indexSuspB);
                 Mostrar(Diagrama.suspBlo,Diagrama.areaSusBlo);
-                
-                if (Diagrama.ProcesosRestantes > 1){
-                    run();
-                }
-                
                 Dormir(a);
                 Diagrama.tiempoTot += (a / 1000);
                 
@@ -174,6 +173,7 @@ public class FIFO implements Runnable{
         Proceso p = obtenerProceso(lista, index);
         indexListo = Añadir(Diagrama.listos,p,indexListo);
         removeProceso(lista, area, index);
+        p.prior += 1;
     }
     
     public int obtenerPrimerProcesoIndex(Proceso[] lista){
@@ -274,9 +274,4 @@ public class FIFO implements Runnable{
         System.out.println(list);
         area.setText(list);
     }
-    
-    
 }
-
-
-

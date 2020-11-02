@@ -1,16 +1,22 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package Bradley;
 
-
-
-import Bradley.Diagrama;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 
-public class FIFO implements Runnable{
+/**
+ *
+ * @author Acer
+ */
+///mia
+public class RR implements Runnable {
     Proceso[] procesos;
     
     Random r = new Random();
@@ -19,27 +25,29 @@ public class FIFO implements Runnable{
     int indexBloqueado=0;
     int indexSuspB=0;
     int indexListo=Diagrama.contador;
-    public static boolean bandera = true;
-    
-    
-    public FIFO(Proceso[] pr, int length){
-        procesos = new Proceso[length];
+    int t=0;
+    int[] arreglo=new int[200];
+    Proceso []arregloord=new Proceso[200];
+    String []pro=new String[200];
+    public RR(Proceso[] pr, int length){
+    procesos = new Proceso[length];
         procesos = pr;
     }
     
     @Override
     public void run() {
-        
+        Proceso p = new Proceso();
         Diagrama.listos=procesos;
         System.out.println("==================================");
         
         
         int ind=0;
         int length = Diagrama.listos.length;
-        //bandera = true;
+        boolean bandera = true;
+                
         
         do{
-            Proceso p = new Proceso();
+            
             p = Diagrama.listos[ind];
             if(p!=null){
                 
@@ -68,18 +76,14 @@ public class FIFO implements Runnable{
     
     
     public void CallProceso (Proceso p, status s){
-        
-        int tiempoTot = p.tiempo;
-        p.servicio = tiempoTot;
-        int a = (ThreadLocalRandom.current().nextInt(1, 3 + 1)) * 1000; 
-        System.out.println("Dormir = " + a);
+        int a = (ThreadLocalRandom.current().nextInt(1, 3 + 1)) * 1000;
         
         switch (s) {
             case EJECUTAR:
                 Diagrama.lbProceso.setText(p.nombre);
                 //Se ejecuta completo el programa
                 System.out.println("Ejecutar");
-                Dormir(1500);
+                Dormir(2000);
                 
                 //? 3: EJECUTARCOMPLETO/4: SUSPENDIDOLISTO/5: BLOQUEADO
                 status randomListo= getStatus(3,2);
@@ -88,7 +92,6 @@ public class FIFO implements Runnable{
                 Diagrama.lbProceso.setText("");
                 
                 break;
-                
             case SUSPENDIDOLISTO:
                 
                 System.out.println("suspendido listo");
@@ -101,18 +104,16 @@ public class FIFO implements Runnable{
                 }
                 
                 Dormir(a);
-                Diagrama.tiempoTot += (a / 1000);
                 returnToListos(Diagrama.suspListo,Diagrama.areaSuspLis );
                 break;
                 
             case EJECUTARCOMPLETO:
                 Diagrama.lbProceso.setText(p.nombre);
                 //Se ejecuta completo el programa
-                System.out.println("EJECUTAR COMPLETO");
-                Dormir(p.tiempo);
-                
-                mostrarFinalizados(p);
+                System.out.println("EJECUTAR COMPLETO");                
+                Dormir(Diagrama.quantum);
                 Diagrama.lbProceso.setText("");
+                Quantum(p);
                 Diagrama.ProcesosRestantes--;
                 break;
                 
@@ -137,9 +138,8 @@ public class FIFO implements Runnable{
                     removeProceso(Diagrama.bloqueado,Diagrama.areaBloqueado, indRemover);
                     CallProceso(p,status.SUSPENDIDOBLOQUEADO);
                 }
-                Diagrama.tiempoTot += (a / 1000);
-                break;                
                 
+                break;                
             case SUSPENDIDOBLOQUEADO:
                 int randomSblo=r.nextInt(2);
                 
@@ -153,7 +153,6 @@ public class FIFO implements Runnable{
                 }
                 
                 Dormir(a);
-                Diagrama.tiempoTot += (a / 1000);
                 
                 int indRemover =   obtenerPrimerProcesoIndex(Diagrama.suspBlo);
                 removeProceso(Diagrama.suspBlo,Diagrama.areaSusBlo, indRemover);
@@ -201,7 +200,8 @@ public class FIFO implements Runnable{
     public void mostrarFinalizados(Proceso p){
         
         // obtenga tiempo
-        int va = Diagrama.aux;
+        
+         int va = Diagrama.aux;
         
         
                Diagrama.list [0] = p.nombre;
@@ -209,6 +209,10 @@ public class FIFO implements Runnable{
                Diagrama.miMod.addRow(Diagrama.list);
                Diagrama.areaFinalizados.setModel(Diagrama.miMod);
         
+        if (Diagrama.areaListos.getText().isEmpty() && Diagrama.areaBloqueado.getText().isEmpty() && 
+                Diagrama.areaSuspLis.getText().isEmpty() && Diagrama.areaSusBlo.getText().isEmpty()){
+            Diagrama.btnIniciar.setEnabled(true);
+        }
     }
     
     
@@ -276,7 +280,28 @@ public class FIFO implements Runnable{
     }
     
     
+     
+         public void Quantum(Proceso p){
+             
+             System.out.println("Quantum");
+        int Quantum=Diagrama.quantum;
+             System.out.println("tiempo "+p.tiempo+" p "+p.nombre);
+        int tRes=p.tiempo-Quantum;
+        p.tiempo=tRes;
+        System.out.println("Quantum "+Quantum+"///Tiempo "+p.tiempo+"//resta "+tRes);
+        if(tRes>0){ //Ejecutando Procesos
+            Diagrama.lbProceso.setText("");
+           indexBloqueado = Añadir(Diagrama.bloqueado,p,indexBloqueado);
+           returnToListos(Diagrama.bloqueado,Diagrama.areaBloqueado );
+            System.out.println("regresa a listos "+p.nombre+" porque resta es "+tRes);
+        }else{
+            System.out.println("Se va a finalizado "+p.nombre+" porque resta es "+tRes);
+            mostrarFinalizados(p);
+            Diagrama.lbProceso.setText("");
+        }  
+        }
+    
+    
 }
-
 
 
